@@ -22,4 +22,4 @@ EXTRA_TARGETS = EBOOT.PBP
 PSP_EBOOT_TITLE = 3DS File Receiver
 
 PSPSDK := $(shell psp-config --pspsdk-path)
-include $(PSPSDK)/share/build.mak
+include $(PSPSDK)/lib/build.mak
