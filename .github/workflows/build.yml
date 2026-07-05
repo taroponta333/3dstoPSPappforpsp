@@ -10,16 +10,18 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Compile EBOOT.PBP
-      # 🔥 コンテナ内のパスをActions側でガチガチに固定してmakeを叩く
-      env:
-        PSPDEV: /usr/local/pspdev
-        PATH: /usr/local/pspdev/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    - name: Compile EBOOT.PBP Directly
       run: |
-        make
+        # 1. まずは main.c を直接コンパイルして実行ファイル(elf)を作る
+        /usr/local/pspdev/bin/psp-gcc -I/usr/local/pspdev/psp/include -I/usr/local/pspdev/psp/sdk/include -O2 -G0 -Wall -D_PSP_FW_VERSION=600 main.c -lpspnet_apctl -lpspnet_resolver -lpspnet_inet -lpspnet -lpsputility -o 3ds_receiver.elf
+        
+        # 2. 実行ファイルをPSPが読めるPRX形式に変換する
+        /usr/local/pspdev/bin/psp-prxgen 3ds_receiver.elf 3ds_receiver.prx
+        
+        # 3. 最終成果物「EBOOT.PBP」に荷造りする（タイトルもここで埋め込む）
+        /usr/local/pspdev/bin/pack-pbp EBOOT.PBP PARAM.SFO NULL NULL NULL NULL NULL 3ds_receiver.prx NULL
 
     - name: Upload Artifact
-      # ✨ 綴りを正しいものに修正しました（お騒がせしました…！）
       uses: actions/upload-artifact@v4
       with:
         name: PSP-Receiver-EBOOT
