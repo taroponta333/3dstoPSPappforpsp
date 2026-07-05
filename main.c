@@ -4,7 +4,7 @@
 #include <pspnet_inet.h>
 #include <pspnet_apctl.h>
 #include <pspnet_resolver.h>
-#include <psputility.h> // ✨ これが足りていませんでした！
+#include <psputility.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -37,18 +37,22 @@ void setup_callbacks(void) {
     if (thid >= 0) sceKernelStartThread(thid, 0, 0);
 }
 
-// PSPのネットワーク機能を呼び出す関数
+// PSPのネットワーク機能を呼び出す関数（✨ 最新SDKのルールに合わせて引数を追加）
 int init_network(void) {
     sceUtilityLoadNetModule(PSP_NET_MODULE_COMMON);
     sceUtilityLoadNetModule(PSP_NET_MODULE_INET);
-    sceNetInit();
+    
+    // 引数：プールサイズ(128KB), コールアウト優先度(42), スタック(4KB), 割り込み優先度(42), スタック(4KB)
+    sceNetInit(128 * 1024, 42, 4 * 1024, 42, 4 * 1024);
     sceNetInetInit();
     sceNetResolverInit();
-    sceNetApctlInit();
+    
+    // 引数：スタックサイズ(約5KB), 優先度(42)
+    sceNetApctlInit(0x1400, 42);
     return 0;
 }
 
-// ネットワークの後片付け（✨ ExitからTermに修正！）
+// ネットワークの後片付け
 void shutdown_network(void) {
     sceNetApctlTerm();
     sceNetResolverTerm();
