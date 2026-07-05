@@ -5,18 +5,22 @@ on: [push, pull_request]
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: pspdev/pspdev:latest  # ✨常に最新の公式環境を使用
+    container: pspdev/pspdev:latest
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
     - name: Compile EBOOT.PBP
+      # 🔥 コンテナ内のパスをActions側でガチガチに固定してmakeを叩く
+      env:
+        PSPDEV: /usr/local/pspdev
+        PATH: /usr/local/pspdev/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       run: |
-        # ✨コンテナ内の正しいビルド環境変数を確実に反映させてmakeを実行
         make
 
     - name: Upload Artifact
-      uses: actions/artifacts@v4
+      # ✨ 綴りを正しいものに修正しました（お騒がせしました…！）
+      uses: actions/upload-artifact@v4
       with:
         name: PSP-Receiver-EBOOT
         path: EBOOT.PBP
