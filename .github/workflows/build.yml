@@ -12,13 +12,10 @@ jobs:
 
     - name: Compile EBOOT.PBP Directly
       run: |
-        # 1. ライブラリの場所（-L）を指定して、main.c を直接コンパイル
-        /usr/local/pspdev/bin/psp-gcc -I/usr/local/pspdev/psp/include -I/usr/local/pspdev/psp/sdk/include -L/usr/local/pspdev/psp/sdk/lib -O2 -G0 -Wall -D_PSP_FW_VERSION=600 main.c -lpspnet_apctl -lpspnet_resolver -lpspnet_inet -lpspnet -lpsputility -o 3ds_receiver.elf
+        # ✨全ての保険（-lpspgum -lpspgu -lpspdebug...）をかけた究極コマンド
+        /usr/local/pspdev/bin/psp-gcc -I/usr/local/pspdev/psp/include -I/usr/local/pspdev/psp/sdk/include -L/usr/local/pspdev/psp/sdk/lib -O2 -G0 -Wall -D_PSP_FW_VERSION=600 main.c -lpspdebug -lpspgu -lpspgum -lpspnet_apctl -lpspnet_resolver -lpspnet_inet -lpspnet -lpsputility -lpspkernel -o 3ds_receiver.elf
         
-        # 2. 実行ファイルをPSP用PRX形式に変換
         /usr/local/pspdev/bin/psp-prxgen 3ds_receiver.elf 3ds_receiver.prx
-        
-        # 3. 成果物「EBOOT.PBP」に荷造り
         /usr/local/pspdev/bin/pack-pbp EBOOT.PBP PARAM.SFO NULL NULL NULL NULL NULL 3ds_receiver.prx NULL
 
     - name: Upload Artifact
