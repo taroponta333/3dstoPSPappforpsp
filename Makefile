@@ -1,18 +1,16 @@
 TARGET = 3ds_receiver
 OBJS = main.o
 
-INCDIR = 
 CFLAGS = -O2 -G0 -Wall
 CXXFLAGS = $(CFLAGS) -fno-exceptions -fno-rtti
 ASFLAGS = $(CFLAGS)
 
-LIBDIR =
-LIBS = -lpspnet_apctl -lpspnet_resolver -lpspnet_inet -lpspnet
+# ネットワーク機能を使うために必要なライブラリを全部リンクする設定
+LIBS = -lpspnet_apctl -lpspnet_resolver -lpspnet_inet -lpspnet -lpsputility
 
-# ✨ ここで公式の見た目に完全偽装します！
-PSP_EBOOT_TITLE = デジタルコミックリーダー
-# もし公式のICON0.PNGを用意したら、下の行の「#」を消して同じフォルダに置いてください
-# PSP_EBOOT_ICON = ICON0.PNG
+# 🔥これが超重要！最終成果物として EBOOT.PBP を作れという命令
+EXTRA_TARGETS = EBOOT.PBP
+PSP_EBOOT_TITLE = 3DS File Receiver
 
 PSPSDK=$(shell psp-config --pspsdk-path)
-include $(PSPSDK)/lib/build.mak
+include $(PSPSDK)/lib/build.make
