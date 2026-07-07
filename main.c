@@ -1,4 +1,5 @@
-#include <psputility_netconf.h>
+#include <psputility_netconf.h>   // ネット接続ダイアログ用
+#include <psputility_msgdialog.h> // 💡 終了ダイアログ用にこれを明示的に追加！
 #include <pspkernel.h>
 #include <pspdebug.h>
 #include <pspnet.h>
@@ -39,18 +40,18 @@ void setup_callbacks(void) {
     if (thid >= 0) sceKernelStartThread(thid, 0, 0);
 }
 
-// ✨ 修正：.base. を完全に撤去し、直接構造体のメンバを指定するように直しました
+// ✨ 修正：.base メンバを正しく復活させました
 int show_network_connect_dialog(void) {
     pspUtilityNetconfData data;
     memset(&data, 0, sizeof(data));
     
-    data.size = sizeof(data);
-    data.language = 1;      // 1 = 日本語
-    data.buttonSwap = 0;    // 0 = ○ボタン決定
-    data.graphicsThread = 17;
-    data.accessThread = 19;
-    data.fontThread = 18;
-    data.soundThread = 16;
+    data.base.size = sizeof(data);
+    data.base.language = 1;      // 1 = 日本語
+    data.base.buttonSwap = 0;    // 0 = ○ボタン決定
+    data.base.graphicsThread = 17;
+    data.base.accessThread = 19;
+    data.base.fontThread = 18;
+    data.base.soundThread = 16;
     
     data.action = 2;             // 2 = アクセスポイントに接続するモード
 
@@ -90,21 +91,24 @@ void safe_exit(const char *error_msg) {
     sceKernelExitGame();
 }
 
+// ✨ 修正：SDK公式の正しいメンバ名（.str と .result）に修正しました
 int show_exit_dialog(void) {
     pspUtilityMsgDialogParams dialog;
     memset(&dialog, 0, sizeof(dialog));
     
     dialog.base.size = sizeof(dialog);
-    dialog.base.language = 1;    // 1 = 日本語（メッセージダイアログ側はbaseが必要）
+    dialog.base.language = 1;    // 1 = 日本語
     dialog.base.buttonSwap = 0;
     dialog.base.graphicsThread = 17;
     dialog.base.accessThread = 19;
     dialog.base.fontThread = 18;
     dialog.base.soundThread = 16;
     
-    dialog.mode = PSP_UTILITY_MSGDIALOG_MODE_TEXT;
-    dialog.options = PSP_UTILITY_MSGDIALOG_OPTION_TEXT; 
-    snprintf(dialog.message, 512, "Do you want to quit the application?");
+    dialog.mode = 1;             // 1 = TEXTモード
+    dialog.options = 0x10;       // 0x10 = YES/NO ボタンを表示するオプション (生数)
+    
+    // 💡 .message ではなく .str がPSP SDKの正しい仕様です！
+    snprintf(dialog.str, 512, "Do you want to quit the application?");
 
     sceUtilityMsgDialogInitStart(&dialog);
 
@@ -113,7 +117,8 @@ int show_exit_dialog(void) {
         if (status == 2) {       // 2 = VISIBLE
             sceUtilityMsgDialogUpdate(1);
         } else if (status == 3) { // 3 = FINISHED
-            if (dialog.buttonPressed == 1) { // 1 = YES
+            // 💡 .buttonPressed ではなく .result == 1 (YES) が正しい仕様です！
+            if (dialog.result == 1) { 
                 sceUtilityMsgDialogShutdownStart();
                 return 1;
             }
