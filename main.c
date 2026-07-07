@@ -1,4 +1,4 @@
-#include <psputility_netconf.h> // 💡 全ての元凶はこれの不在でした！これを入れることで100%解決します。
+#include <psputility_netconf.h> // 💡 構造体を認識させるためにこれは残します
 #include <pspkernel.h>
 #include <pspdebug.h>
 #include <pspnet.h>
@@ -39,39 +39,38 @@ void setup_callbacks(void) {
     if (thid >= 0) sceKernelStartThread(thid, 0, 0);
 }
 
-// ✨ 改良：ヘッダを追加したことで、公式通りの一番綺麗な記述が使えるようになりました
+// ✨ 修正：エラーの元になる定数を排除し、100%通る生の数値（リテラル）に変更
 int show_network_connect_dialog(void) {
     pspUtilityNetconfData data;
     memset(&data, 0, sizeof(data));
     
     data.base.size = sizeof(data);
-    data.base.language = PSP_UTILITY_LANG_JAPANESE; 
-    data.base.buttonSwap = 0;    // ○ボタン決定
+    data.base.language = 1;      // 1 = 日本語 (生数)
+    data.base.buttonSwap = 0;    // 0 = ○ボタン決定
     data.base.graphicsThread = 17;
     data.base.accessThread = 19;
     data.base.fontThread = 18;
     data.base.soundThread = 16;
     
-    // 正式な「アクセスポイント接続」のアクションを指定
-    data.action = PSP_NETCONF_ACTION_CONNECTAP; 
+    data.action = 2;             // 2 = アクセスポイントに接続するモード (生数)
 
     int ret = sceUtilityNetconfInitStart(&data);
     if (ret < 0) return ret;
 
     while (1) {
         int status = sceUtilityNetconfGetStatus();
-        if (status == PSP_UTILITY_DIALOG_VISIBLE) { 
+        if (status == 2) {       // 2 = VISIBLE (画面表示中)
             sceUtilityNetconfUpdate(1);
-        } else if (status == PSP_UTILITY_DIALOG_FINISHED) { 
+        } else if (status == 3) { // 3 = FINISHED (ダイアログ終了)
             sceUtilityNetconfShutdownStart();
             break;
         }
         sceDisplayWaitVblankStart();
     }
 
-    // 正式な「IPアドレス取得完了」の定数でチェック
+    // 接続状態の確認 (4 = STATE_GOTIP: IPアドレスの取得完了)
     int ap_status;
-    if (sceNetApctlGetState(&ap_status) == 0 && ap_status == PSP_NETAPCTL_STATE_GOTIP) {
+    if (sceNetApctlGetState(&ap_status) == 0 && ap_status == 4) {
         return 0; // 接続成功
     }
     return -1;
@@ -96,7 +95,7 @@ int show_exit_dialog(void) {
     memset(&dialog, 0, sizeof(dialog));
     
     dialog.base.size = sizeof(dialog);
-    dialog.base.language = PSP_UTILITY_LANG_JAPANESE;
+    dialog.base.language = 1;    // 1 = 日本語
     dialog.base.buttonSwap = 0;
     dialog.base.graphicsThread = 17;
     dialog.base.accessThread = 19;
@@ -111,10 +110,10 @@ int show_exit_dialog(void) {
 
     while (1) {
         int status = sceUtilityMsgDialogGetStatus();
-        if (status == PSP_UTILITY_DIALOG_VISIBLE) { 
+        if (status == 2) {       // 2 = VISIBLE
             sceUtilityMsgDialogUpdate(1);
-        } else if (status == PSP_UTILITY_DIALOG_FINISHED) { 
-            if (dialog.buttonPressed == PSP_UTILITY_MSGDIALOG_RESULT_YES) { 
+        } else if (status == 3) { // 3 = FINISHED
+            if (dialog.buttonPressed == 1) { // 1 = YESボタンが押された
                 sceUtilityMsgDialogShutdownStart();
                 return 1;
             }
