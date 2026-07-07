@@ -1,20 +1,24 @@
-#include <psputility_netconf.h>
 #include <pspkernel.h>
 #include <pspdebug.h>
+
+#include <psputility.h>          // ←先
+#include <psputility_netconf.h>  // ←後
+
 #include <pspnet.h>
 #include <pspnet_inet.h>
 #include <pspnet_apctl.h>
 #include <pspnet_resolver.h>
-#include <psputility.h>
+
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>
+
 #include <pspctrl.h>
 #include <pspdisplay.h>
-
 PSP_MODULE_INFO("3DS_Receiver", 0, 1, 1);
 PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER | THREAD_ATTR_VFPU);
 
