@@ -38,6 +38,58 @@ void setup_callbacks(void) {
     if (thid >= 0) sceKernelStartThread(thid, 0, 0);
 }
 
+// ✨ 改良：PSP標準のWi-Fi接続画面（WPA2対応）を呼び出す関数
+int show_network_connect_dialog(void) {
+    pspUtilityNetconfData data;
+    memset(&data, 0, sizeof(data));
+    
+    data.base.size = sizeof(data);
+    data.base.language = 1;      // 日本語
+    data.base.buttonSwap = 0;    // ○ボタン決定
+    data.base.graphicsThread = 17;
+    data.base.accessThread = 19;
+    data.base.fontThread = 18;
+    data.base.soundThread = 16;
+    
+    data.action = PSP_NETCONF_ACTION_CONNECTAP; // アクセスポイントに接続するモード
+
+    // ネットワーク接続ダイアログの起動
+    int ret = sceUtilityNetconfInitStart(&data);
+    if (ret < 0) return ret;
+
+    while (1) {
+        int status = sceUtilityNetconfGetStatus();
+        if (status == PSP_UTILITY_DIALOG_VISIBLE) {
+            sceUtilityNetconfUpdate(1);
+        } else if (status == PSP_UTILITY_DIALOG_FINISHED) {
+            sceUtilityNetconfShutdownStart();
+            break;
+        }
+        sceDisplayWaitVblankStart();
+    }
+
+    // 接続状態の確認（正常に接続できたら0が返る）
+    int ap_status;
+    if (sceNetApctlGetState(&ap_status) == 0 && ap_status == PSP_NETAPCTL_STATE_GOTIP) {
+        return 0; // 接続成功
+    }
+    return -1; // 接続失敗またはキャンセル
+}
+
+// 安全に終了メッセージを出して終了する関数
+void safe_exit(const char *error_msg) {
+    pspDebugScreenClear();
+    printf("==========================================\n");
+    printf("       PSP Wireless File Receiver         \n");
+    printf("==========================================\n\n");
+    if (error_msg) {
+        printf("[ERR] %s\n", error_msg);
+    }
+    printf("\nExiting application in 5 seconds...\n");
+    sceKernelDelayThread(5000000); // 5秒待ってから安全に閉じる（電源落ち防止）
+    sceKernelExitGame();
+}
+
 int show_exit_dialog(void) {
     pspUtilityMsgDialogParams dialog;
     memset(&dialog, 0, sizeof(dialog));
@@ -58,7 +110,6 @@ int show_exit_dialog(void) {
 
     while (1) {
         int status = sceUtilityMsgDialogGetStatus();
-        
         if (status == PSP_UTILITY_DIALOG_VISIBLE) { 
             sceUtilityMsgDialogUpdate(1);
         } else if (status == PSP_UTILITY_DIALOG_FINISHED) {
@@ -74,12 +125,12 @@ int show_exit_dialog(void) {
 }
 
 int init_network(void) {
-    sceUtilityLoadNetModule(PSP_NET_MODULE_COMMON);
-    sceUtilityLoadNetModule(PSP_NET_MODULE_INET);
-    sceNetInit(128 * 1024, 42, 4 * 1024, 42, 4 * 1024);
-    sceNetInetInit();
-    sceNetResolverInit();
-    sceNetApctlInit(0x1400, 42);
+    if (sceUtilityLoadNetModule(PSP_NET_MODULE_COMMON) < 0) return -1;
+    if (sceUtilityLoadNetModule(PSP_NET_MODULE_INET) < 0) return -1;
+    if (sceNetInit(128 * 1024, 42, 4 * 1024, 42, 4 * 1024) < 0) return -1;
+    if (sceNetInetInit() < 0) return -1;
+    if (sceNetResolverInit() < 0) return -1;
+    if (sceNetApctlInit(0x1400, 42) < 0) return -1;
     return 0;
 }
 
@@ -92,10 +143,8 @@ void shutdown_network(void) {
     sceUtilityUnloadNetModule(PSP_NET_MODULE_COMMON);
 }
 
-// 画面の特定の行をクリアして再描画するための補助関数
 void print_status_line(int y, const char *msg) {
     pspDebugScreenSetXY(0, y);
-    // 既存の文字を上書き消去するために空白で埋めてから描画
     printf("                                                                ");
     pspDebugScreenSetXY(0, y);
     printf("%s", msg);
@@ -109,23 +158,42 @@ int main(void) {
     printf("       PSP Wireless File Receiver         \n");
     printf("==========================================\n\n");
     
-    printf("[SYS] Initializing network...\n");
+    printf("[SYS] Initializing network modules...\n");
     if (init_network() < 0) {
-        printf("[ERR] Network initialization failed!\n");
-        sceKernelDelayThread(2000000);
-        sceKernelExitGame();
+        safe_exit("Network initialization failed!");
         return 0;
     }
 
+    // ✨ 改善：ここでPSP標準のWi-Fi接続画面（WPA2対応設定の選択）を表示させる
+    printf("[SYS] Opening Network Connection Dialog...\n");
+    if (show_network_connect_dialog() < 0) {
+        shutdown_network();
+        safe_exit("Failed to connect to Wi-Fi. (Canceled or Timeout)");
+        return 0;
+    }
+
+    // Wi-Fi接続成功後の処理
     int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock < 0) {
+        shutdown_network();
+        safe_exit("Socket creation failed!");
+        return 0;
+    }
+
     struct sockaddr_in server_addr;
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(RECV_PORT);
     server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    bind(sock, (struct sockaddr *)&server_addr, sizeof(server_addr));
+    
+    if (bind(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
+        close(sock);
+        shutdown_network();
+        safe_exit("Socket bind failed!");
+        return 0;
+    }
 
-    struct timeval timeout = {0, 100000}; // タイムアウトを0.1秒にしてボタン反応を向上
+    struct timeval timeout = {0, 100000}; // タイムアウト0.1秒
     setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
 
     char buffer[PACKET_SIZE];
@@ -134,14 +202,20 @@ int main(void) {
     FILE *file = NULL;
     
     int is_transferring = 0;
-    unsigned int total_file_size = 0;   // 3DSから通知される総ファイルサイズ
-    unsigned int received_bytes_sum = 0; // これまでに受信した総バイト数
+    unsigned int total_file_size = 0;
+    unsigned int received_bytes_sum = 0;
 
     SceCtrlData pad;
 
-    // メッセージ描画位置の固定用の行番号
-    const int STATUS_LINE_Y = 6;
-    const int PROGRESS_LINE_Y = 8;
+    const int STATUS_LINE_Y = 8;
+    const int PROGRESS_LINE_Y = 10;
+
+    // 自分の現在のIPアドレスを取得して表示（デバッグ用）
+    char my_ip[32] = "Unknown";
+    sceNetApctlGetInfo(8, my_ip); // 8番＝IPアドレス文字列取得
+    
+    pspDebugScreenSetXY(0, 5);
+    printf("[SYS] Wi-Fi Connected! IP: %s\n", my_ip);
 
     print_status_line(STATUS_LINE_Y, "[STATUS] Ready. Waiting for 3DS broadcast...");
     printf("\n\n(Press TRIANGLE to quit)\n");
@@ -152,17 +226,17 @@ int main(void) {
             if (show_exit_dialog()) {
                 break; 
             } else {
-                // ダイアログから戻ったらデバッグ画面をクリアして再描画
                 pspDebugScreenClear();
                 printf("==========================================\n");
                 printf("       PSP Wireless File Receiver         \n");
                 printf("==========================================\n\n");
+                printf("[SYS] Wi-Fi Connected! IP: %s\n", my_ip);
                 if (is_transferring) {
                     print_status_line(STATUS_LINE_Y, "[STATUS] Downloading data from 3DS...");
                 } else {
                     print_status_line(STATUS_LINE_Y, "[STATUS] Ready. Waiting for 3DS broadcast...");
                 }
-                pspDebugScreenSetXY(0, STATUS_LINE_Y + 2);
+                pspDebugScreenSetXY(0, STATUS_LINE_Y + 3);
                 printf("(Press TRIANGLE to quit)\n");
             }
         }
@@ -174,12 +248,8 @@ int main(void) {
                 is_transferring = 1;
                 print_status_line(STATUS_LINE_Y, "[STATUS] Connection established! Receiving data...");
                 
-                // 💡 【進捗処理】最初のパケットの先頭4バイトを総ファイルサイズとして読み取る場合
-                // ※3DS側の送信コードの先頭に「ファイルサイズ」を仕込んでおく必要があります
                 if (bytes_received >= sizeof(unsigned int)) {
                     memcpy(&total_file_size, buffer, sizeof(unsigned int));
-                    
-                    // 最初のパケットの残りのデータをファイルに書き込む
                     int data_size = bytes_received - sizeof(unsigned int);
                     if (data_size > 0 && file) {
                         fwrite(buffer + sizeof(unsigned int), 1, data_size, file);
@@ -187,31 +257,27 @@ int main(void) {
                     }
                 }
             } else {
-                // 2パケット目以降の通常の書き込み
                 if (file) {
                     fwrite(buffer, 1, bytes_received, file);
                     received_bytes_sum += bytes_received;
                 }
             }
 
-            // 📊 画面に進捗状況をリアルタイム描画
             char progress_msg[128];
             if (total_file_size > 0) {
                 int percent = (int)(((long long)received_bytes_sum * 100) / total_file_size);
-                if (percent > 100) percent = 100; // 念のための上限ガード
+                if (percent > 100) percent = 100;
                 snprintf(progress_msg, sizeof(progress_msg), "Progress: %d%% (%u / %u bytes)", percent, received_bytes_sum, total_file_size);
             } else {
-                // ファイルサイズが不明な場合は、受信サイズのみカウント表示
                 snprintf(progress_msg, sizeof(progress_msg), "Progress: ---%% (%u bytes received)", received_bytes_sum);
             }
             print_status_line(PROGRESS_LINE_Y, progress_msg);
 
         } else if (is_transferring) {
-            // タイムアウト（データが送られてこなくなった）＝転送完了とみなす
             if (file) fclose(file);
             file = NULL;
             print_status_line(STATUS_LINE_Y, "[STATUS] Transfer complete! File saved successfully.");
-            sceKernelDelayThread(3000000); // 3秒間画面を保持
+            sceKernelDelayThread(3000000);
             break;
         }
     }
