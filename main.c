@@ -39,7 +39,7 @@ void setup_callbacks(void) {
     if (thid >= 0) sceKernelStartThread(thid, 0, 0);
 }
 
-// ✨ 修正：.base. を完全に撤去し、直接構造体のメンバを指定するように直しました
+// 🌐 ネット接続ダイアログ（PSPSDKの仕様に合わせ .base 構造体を正しく使用）
 int show_network_connect_dialog(void) {
     pspUtilityNetconfData data;
     memset(&data, 0, sizeof(data));
@@ -95,7 +95,7 @@ int show_exit_dialog(void) {
     memset(&dialog, 0, sizeof(dialog));
     
     dialog.base.size = sizeof(dialog);
-    dialog.base.language = 1;    // 1 = 日本語（メッセージダイアログ側はbaseが必要）
+    dialog.base.language = 1;    // 1 = 日本語
     dialog.base.buttonSwap = 0;
     dialog.base.graphicsThread = 17;
     dialog.base.accessThread = 19;
@@ -103,7 +103,8 @@ int show_exit_dialog(void) {
     dialog.base.soundThread = 16;
     
     dialog.mode = PSP_UTILITY_MSGDIALOG_MODE_TEXT;
-    dialog.options = PSP_UTILITY_MSGDIALOG_OPTION_TEXT; 
+    // 🛠️ 修正：標準的なYES/NOボタン表示用の定数名に変更
+    dialog.options = PSP_UTILITY_MSGDIALOG_OPTION_YESNO; 
     snprintf(dialog.message, 512, "Do you want to quit the application?");
 
     sceUtilityMsgDialogInitStart(&dialog);
@@ -164,7 +165,7 @@ int main(void) {
         return 0;
     }
 
-    // Wi-Fi接続画面を表示（WPA2プロファイル選択用）
+    // Wi-Fi接続画面を表示
     printf("[SYS] Opening Network Connection Dialog...\n");
     if (show_network_connect_dialog() < 0) {
         shutdown_network();
@@ -246,13 +247,17 @@ int main(void) {
         if (bytes_received > 0) { 
             if (!is_transferring) { 
                 file = fopen(SAVE_PATH, "wb"); 
+                if (!file) {
+                    print_status_line(STATUS_LINE_Y, "[STATUS] Error: Cannot open file for writing.");
+                    break;
+                }
                 is_transferring = 1; 
                 print_status_line(STATUS_LINE_Y, "[STATUS] Connection established! Receiving data...");
                 
                 if (bytes_received >= sizeof(unsigned int)) {
                     memcpy(&total_file_size, buffer, sizeof(unsigned int));
                     int data_size = bytes_received - sizeof(unsigned int);
-                    if (data_size > 0 && file) {
+                    if (data_size > 0) {
                         fwrite(buffer + sizeof(unsigned int), 1, data_size, file);
                         received_bytes_sum += data_size;
                     }
@@ -269,23 +274,3 @@ int main(void) {
                 int percent = (int)(((long long)received_bytes_sum * 100) / total_file_size);
                 if (percent > 100) percent = 100;
                 snprintf(progress_msg, sizeof(progress_msg), "Progress: %d%% (%u / %u bytes)", percent, received_bytes_sum, total_file_size);
-            } else {
-                snprintf(progress_msg, sizeof(progress_msg), "Progress: ---%% (%u bytes received)", received_bytes_sum);
-            }
-            print_status_line(PROGRESS_LINE_Y, progress_msg);
-
-        } else if (is_transferring) { 
-            if (file) fclose(file); 
-            file = NULL;
-            print_status_line(STATUS_LINE_Y, "[STATUS] Transfer complete! File saved successfully.");
-            sceKernelDelayThread(3000000); 
-            break; 
-        }
-    }
-
-    if (file) fclose(file); 
-    close(sock); 
-    shutdown_network(); 
-    sceKernelExitGame(); 
-    return 0; 
-}
