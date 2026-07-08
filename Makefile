@@ -21,8 +21,8 @@ LIBS = \
 -lpspgu \
 -lpspgum \
 -lpspge \
--lpspvfpu
-
+-lpspvfpu \
+-lpspkernel
 EXTRA_TARGETS = EBOOT.PBP
 
 PSP_EBOOT_TITLE = 3DS File Receiver
