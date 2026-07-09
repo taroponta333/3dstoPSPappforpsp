@@ -4,7 +4,7 @@
 #include <psputility_netconf.h>
 #include <pspsysmem.h>
 #include <string.h>
-
+#include <psputility_sysparam.h>
 #include "dialog.h"
 
 /*=========================================================
