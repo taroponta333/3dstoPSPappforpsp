@@ -8,6 +8,80 @@
 #include <pspnet_inet.h>
 #include <pspnet_resolver.h>
 
+#include <psputility.h>
+#include <psputility_netconf.h>
+
+#include <stdio.h>
+#include <string.h>
+PSP_MODULE_INFO("3DS App Receiver", 0, 1, 0);
+PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER | THREAD_ATTR_VFPU);
+
+
+
+
+
+オファーを受け取る
+
+
+3dstoPSPappforpsp-main (1).zip
+Zip アーカイブ
+Deep Research
+ githubでeboot.pbpをビルドしようと思ったけどエラーがエグい
+
+
+
+なんか設定のとこでエラー吐いてる気がする
+
+
+3dstoPSPappforpsp-main (2).zip
+Zip アーカイブ
+https://github.com/taroponta333/3dstoPSPappforpsp
+
+
+main (1).c
+ファイル
+
+PSPのオンライン機能復活について.pdf
+PDF
+あといままでこれを何故作ろうとしたのかの話
+
+
+psp-to-3ds-app-main (1).zip
+Zip アーカイブ
+じゃあ一旦3DS側のコード（生成ができることは確認済み）出すからそれに合わせて書いてほしい
+
+
+自分のpsp改造歴史.pdf
+PDF
+バッテリーの話は伏線でした
+そして時が流れて小6この頃AIがめっちゃ高性能に
+そこで一旦バッテリー回復を目指して2時間くらい充電
+つけてみるとあれ？なんでオートブートなの？もしかしてパンドラ？
+その後mｍs作成しようにもクラシックパンドラのみ
+入れてみると海外版ぷよぷよで600に！！
+あとはwebアーカイブで661のデータ取得
+pro導入
+ark-4を知る
+導入
+
+6時以降らしい
+
+おｋ！
+
+よし！じゃあ v0.3 Part 1 いこう！🚀
+
+今回はコンパイルが通ることを最優先にして、HOME終了とネットワーク初期化まで実装するよ。
+
+#include <pspkernel.h>
+#include <pspdebug.h>
+#include <pspctrl.h>
+#include <pspdisplay.h>
+
+#include <pspnet.h>
+#include <pspnet_apctl.h>
+#include <pspnet_inet.h>
+#include <pspnet_resolver.h>
+
 #include <stdio.h>
 #include <string.h>
 
@@ -57,15 +131,9 @@ int SetupCallbacks(void)
 
     return thid;
 }
-/*=========================================================
-    ネットワーク初期化
-=========================================================*/
-
 int InitNetwork(void)
 {
     int ret;
-
-    pspDebugScreenPrintf("\nInitializing Network...\n\n");
 
     ret = sceNetInit(
         128 * 1024,
@@ -74,55 +142,79 @@ int InitNetwork(void)
         42,
         4 * 1024);
 
-    if (ret < 0)
-    {
-        pspDebugScreenPrintf(
-            "sceNetInit Error : 0x%08X\n",
-            ret);
+    if(ret < 0)
         return ret;
-    }
-
-    pspDebugScreenPrintf("[OK] sceNetInit\n");
 
     ret = sceNetInetInit();
-
-    if (ret < 0)
-    {
-        pspDebugScreenPrintf(
-            "sceNetInetInit Error : 0x%08X\n",
-            ret);
+    if(ret < 0)
         return ret;
-    }
-
-    pspDebugScreenPrintf("[OK] sceNetInetInit\n");
 
     ret = sceNetResolverInit();
-
-    if (ret < 0)
-    {
-        pspDebugScreenPrintf(
-            "sceNetResolverInit Error : 0x%08X\n",
-            ret);
+    if(ret < 0)
         return ret;
-    }
-
-    pspDebugScreenPrintf("[OK] sceNetResolverInit\n");
 
     ret = sceNetApctlInit(
         0x1800,
         48);
 
-    if (ret < 0)
-    {
-        pspDebugScreenPrintf(
-            "sceNetApctlInit Error : 0x%08X\n",
-            ret);
+    if(ret < 0)
         return ret;
-    }
-
-    pspDebugScreenPrintf("[OK] sceNetApctlInit\n");
 
     return 0;
+}
+int IsConnected(void)
+{
+    int state;
+
+    if(sceNetApctlGetState(&state) < 0)
+        return 0;
+
+    return (state == 4);
+}
+void PrintConnectionState(void)
+{
+    int state;
+
+    sceNetApctlGetState(&state);
+
+    pspDebugScreenPrintf("\n");
+
+    switch(state)
+    {
+        case 0:
+            pspDebugScreenPrintf("Disconnected\n");
+            break;
+
+        case 1:
+            pspDebugScreenPrintf("Scanning...\n");
+            break;
+
+        case 2:
+            pspDebugScreenPrintf("Connecting...\n");
+            break;
+
+        case 3:
+            pspDebugScreenPrintf("Getting IP...\n");
+            break;
+
+        case 4:
+            pspDebugScreenPrintf("Connected!\n");
+            break;
+
+        default:
+            pspDebugScreenPrintf("Unknown State : %d\n", state);
+            break;
+    }
+}
+void PrepareNetDialog(void)
+{
+    pspUtilityNetconfData dialog;
+
+    memset(&dialog, 0, sizeof(dialog));
+
+    dialog.base.size = sizeof(dialog);
+
+    dialog.action = PSP_NETCONF_ACTION_CONNECTAP;
 }
 /*=========================================================
     メイン
@@ -131,86 +223,71 @@ int InitNetwork(void)
 int main(void)
 {
     int ret;
-    int state = 0;
 
     SetupCallbacks();
 
     pspDebugScreenInit();
 
     pspDebugScreenPrintf("=================================\n");
-    pspDebugScreenPrintf("      3DS App Receiver v0.3\n");
+    pspDebugScreenPrintf("      3DS App Receiver v0.4\n");
     pspDebugScreenPrintf("=================================\n\n");
 
     /* ネットワーク初期化 */
+
     ret = InitNetwork();
 
-    if (ret < 0)
+    if(ret < 0)
+    {
+        pspDebugScreenPrintf("Network Init Failed!\n");
+        pspDebugScreenPrintf("Error : 0x%08X\n", ret);
+
+        while(1)
+            sceDisplayWaitVblankStart();
+    }
+
+    pspDebugScreenPrintf("[OK] Network Initialized\n");
+
+    /* 接続状態表示 */
+
+    PrintConnectionState();
+
+    if(!IsConnected())
     {
         pspDebugScreenPrintf("\n");
-        pspDebugScreenPrintf("Network initialization failed.\n");
-        pspDebugScreenPrintf("Error : 0x%08X\n", ret);
-        pspDebugScreenPrintf("\nPress HOME to exit.\n");
-
-        while (1)
-        {
-            sceDisplayWaitVblankStart();
-        }
+        pspDebugScreenPrintf("---------------------------------\n");
+        pspDebugScreenPrintf("Wi-Fi is not connected.\n");
+        pspDebugScreenPrintf("Network Dialog will be\n");
+        pspDebugScreenPrintf("implemented in v0.5\n");
+        pspDebugScreenPrintf("---------------------------------\n");
     }
-
-    pspDebugScreenPrintf("\n");
-    pspDebugScreenPrintf("Network initialized successfully!\n");
-
-    /* 接続状態取得 */
-    sceNetApctlGetState(&state);
-
-    pspDebugScreenPrintf("\n");
-
-    switch(state)
+    else
     {
-        case 0:
-            pspDebugScreenPrintf("Wi-Fi : Disconnected\n");
-            break;
-
-        case 1:
-            pspDebugScreenPrintf("Wi-Fi : Scanning...\n");
-            break;
-
-        case 2:
-            pspDebugScreenPrintf("Wi-Fi : Connecting...\n");
-            break;
-
-        case 3:
-            pspDebugScreenPrintf("Wi-Fi : Obtaining IP...\n");
-            break;
-
-        case 4:
-            pspDebugScreenPrintf("Wi-Fi : Connected!\n");
-            break;
-
-        default:
-            pspDebugScreenPrintf("Wi-Fi : Unknown (%d)\n", state);
-            break;
+        pspDebugScreenPrintf("\n");
+        pspDebugScreenPrintf("---------------------------------\n");
+        pspDebugScreenPrintf("Connected!\n");
+        pspDebugScreenPrintf("---------------------------------\n");
     }
 
     pspDebugScreenPrintf("\n");
-    pspDebugScreenPrintf("---------------------------------\n");
     pspDebugScreenPrintf("Waiting for 3DS...\n");
-    pspDebugScreenPrintf("---------------------------------\n\n");
-
+    pspDebugScreenPrintf("\n");
     pspDebugScreenPrintf("HOME : Exit\n");
 
-    while (1)
+    while(1)
     {
         sceDisplayWaitVblankStart();
 
-        /* 接続状態を更新 */
-        sceNetApctlGetState(&state);
+        /* v0.5
+           Network Dialog
 
-        /* v0.4以降で
-           ・接続ダイアログ
-           ・UDP待受
-           ・受信処理
-           をここへ追加する */
+           v0.6
+           Socket
+
+           v0.7
+           Receive
+
+           をここへ追加
+        */
     }
 
     return 0;
