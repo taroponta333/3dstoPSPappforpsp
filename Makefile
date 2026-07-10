@@ -1,8 +1,5 @@
 TARGET = 3ds_receiver
 
-BUILD_PRX = 1
-PSP_FW_VERSION = 661
-
 OBJS = main.o
 
 CFLAGS = -O2 -G0 -Wall
@@ -11,13 +8,11 @@ ASFLAGS = $(CFLAGS)
 
 LIBS = \
 -lpspdebug \
--lpspkernel \
--lpspdisplay
+-lpspdisplay \
+-lpspctrl
 
 EXTRA_TARGETS = EBOOT.PBP
-
-PSP_EBOOT_TITLE = 3DS App Receiver v0.5.1
+PSP_EBOOT_TITLE = 3DS File Receiver
 
 PSPSDK := $(shell psp-config --pspsdk-path)
-
 include $(PSPSDK)/lib/build.mak
