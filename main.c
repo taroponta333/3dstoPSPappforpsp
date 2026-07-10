@@ -10,7 +10,7 @@ PSP_MODULE_INFO("3DS App Receiver", PSP_MODULE_USER, 1, 0);
 PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER | THREAD_ATTR_VFPU);
 
 /*=========================================================
-    HOMEボタン対応
+    Exit Callback
 =========================================================*/
 
 int exit_callback(int arg1, int arg2, void *common)
@@ -28,7 +28,10 @@ int CallbackThread(SceSize args, void *argp)
         exit_callback,
         NULL);
 
-    sceKernelRegisterExitCallback(cbid);
+    if(cbid >= 0)
+    {
+        sceKernelRegisterExitCallback(cbid);
+    }
 
     sceKernelSleepThreadCB();
 
@@ -40,11 +43,11 @@ int SetupCallbacks(void)
     int thid;
 
     thid = sceKernelCreateThread(
-        "update_thread",
+        "exit_thread",
         CallbackThread,
-        0x20,
+        0x11,
         0xFA0,
-        0,
+        PSP_THREAD_ATTR_USER,
         NULL);
 
     if(thid >= 0)
@@ -63,7 +66,14 @@ int main(void)
 
     SetupCallbacks();
 
+    /* Initialize display */
+    sceDisplaySetMode(0, 480, 272);
+    sceDisplaySetFrameBuf(sceGeEdramGetAddr(), 512, PSP_DISPLAY_PIXEL_FORMAT_8888, PSP_DISPLAY_ROTATE_0);
+
     pspDebugScreenInit();
+    pspDebugScreenSetBackColor(0x00000000);
+    pspDebugScreenSetTextColor(0xFFFFFFFF);
+    pspDebugScreenClear();
 
     pspDebugScreenPrintf("=================================\n");
     pspDebugScreenPrintf("      3DS App Receiver\n");
@@ -79,31 +89,36 @@ int main(void)
         pspDebugScreenPrintf("\n");
         pspDebugScreenPrintf("Network Init Failed!\n");
         pspDebugScreenPrintf("Error : 0x%08X\n", ret);
+        pspDebugScreenPrintf("\nPress HOME to exit.\n");
 
-        while(1)
-            sceDisplayWaitVblankStart();
+        sceKernelSleepThread();
+        return 1;
     }
 
-    pspDebugScreenPrintf("[OK] Network Initialized\n");
+    pspDebugScreenPrintf("[OK] Network Initialized\n\n");
 
-    pspDebugScreenPrintf("\n");
-
-    /* 接続ダイアログ */
+    pspDebugScreenPrintf("Waiting for connection dialog...\n");
+    pspDebugScreenPrintf("(Select your WiFi network)\n\n");
 
     ret = Dialog_ShowNetwork();
 
     if(ret < 0)
     {
-        pspDebugScreenPrintf("Network Dialog Failed!\n");
+        pspDebugScreenPrintf("\nNetwork Dialog Failed!\n");
         pspDebugScreenPrintf("Error : 0x%08X\n", ret);
+        pspDebugScreenPrintf("\nPress HOME to exit.\n");
 
-        while(1)
-            sceDisplayWaitVblankStart();
+        sceKernelSleepThread();
+        return 1;
     }
 
-    pspDebugScreenPrintf("Connected!\n");
+    pspDebugScreenClear();
 
-    pspDebugScreenPrintf("\n");
+    pspDebugScreenPrintf("=================================\n");
+    pspDebugScreenPrintf("      3DS App Receiver\n");
+    pspDebugScreenPrintf("=================================\n\n");
+
+    pspDebugScreenPrintf("Connected!\n\n");
 
     Network_PrintIP();
 
@@ -112,23 +127,12 @@ int main(void)
     pspDebugScreenPrintf("Waiting for 3DS...\n");
     pspDebugScreenPrintf("-------------------------------\n\n");
 
-    pspDebugScreenPrintf("HOME : Exit\n");
+    pspDebugScreenPrintf("Press HOME to exit.\n");
 
-    while(1)
-    {
-        sceDisplayWaitVblankStart();
+    /* Wait for exit via callback */
+    sceKernelSleepThread();
 
-        /*
-
-        v0.6
-            Receiver_Update();
-
-        v0.7
-            File_Update();
-
-        */
-
-    }
+    Network_Shutdown();
 
     return 0;
 }
