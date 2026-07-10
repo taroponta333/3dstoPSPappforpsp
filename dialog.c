@@ -1,3 +1,4 @@
+#include <psputility_modules.h>
 #include <pspkernel.h>
 #include <pspdisplay.h>
 #include <psputility.h>
@@ -14,7 +15,8 @@
 int Dialog_ShowNetwork(void)
 {
     pspUtilityNetconfData dialog;
-
+    sceUtilityLoadNetModule(PSP_NET_MODULE_COMMON);
+    sceUtilityLoadNetModule(PSP_NET_MODULE_INET);
     memset(&dialog, 0, sizeof(dialog));
 
     /* 共通設定 */
