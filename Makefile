@@ -1,6 +1,9 @@
 TARGET = 3ds_receiver
 
-OBJS = main.o
+OBJS = \
+main.o \
+dialog.o \
+network.o
 
 CFLAGS = -O2 -G0 -Wall
 CXXFLAGS = $(CFLAGS) -fno-exceptions -fno-rtti
