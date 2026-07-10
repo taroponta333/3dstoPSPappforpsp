@@ -92,23 +92,15 @@ int main(void)
 
     ret = Dialog_ShowNetwork();
 
-if(ret == 0)
-{
-    pspDebugScreenPrintf("Connected!\n");
-}
-else
-{
-    pspDebugScreenPrintf("Cancelled.\n");
-}
     if(ret < 0)
     {
-        pspDebugScreenPrintf("Network Dialog Cancelled\n");
+        pspDebugScreenPrintf("Network Dialog Failed!\n");
+        pspDebugScreenPrintf("Error : 0x%08X\n", ret);
 
         while(1)
             sceDisplayWaitVblankStart();
     }
 
-    pspDebugScreenPrintf("\n");
     pspDebugScreenPrintf("Connected!\n");
 
     pspDebugScreenPrintf("\n");
