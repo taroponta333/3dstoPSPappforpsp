@@ -1,23 +1,27 @@
-#include <psputility_modules.h>
 #include <pspkernel.h>
 #include <pspdisplay.h>
+
 #include <psputility.h>
 #include <psputility_netconf.h>
-#include <pspsysmem.h>
-#include <string.h>
+#include <psputility_modules.h>
 #include <psputility_sysparam.h>
-#include "dialog.h"
 
-/*=========================================================
-    ネットワーク接続ダイアログ
-=========================================================*/
+#include <string.h>
+
+#include "dialog.h"
 
 int Dialog_ShowNetwork(void)
 {
+    int status;
+
     pspUtilityNetconfData dialog;
+
+    memset(&dialog, 0, sizeof(dialog));
+
+    /* ネットワークモジュール読込 */
+
     sceUtilityLoadNetModule(PSP_NET_MODULE_COMMON);
     sceUtilityLoadNetModule(PSP_NET_MODULE_INET);
-    memset(&dialog, 0, sizeof(dialog));
 
     /* 共通設定 */
 
@@ -45,29 +49,47 @@ int Dialog_ShowNetwork(void)
 
     /* ダイアログ開始 */
 
-    if(sceUtilityNetconfInitStart(&dialog) < 0)
-        return -1;
-
-    while(1)
+    if (sceUtilityNetconfInitStart(&dialog) < 0)
     {
-        switch(sceUtilityNetconfGetStatus())
+        sceUtilityUnloadNetModule(PSP_NET_MODULE_INET);
+        sceUtilityUnloadNetModule(PSP_NET_MODULE_COMMON);
+
+        return -1;
+    }
+
+    while (1)
+    {
+        status = sceUtilityNetconfGetStatus();
+
+        switch (status)
         {
             case PSP_UTILITY_DIALOG_INIT:
+
+                break;
+
             case PSP_UTILITY_DIALOG_VISIBLE:
 
                 sceUtilityNetconfUpdate(1);
+
                 break;
 
             case PSP_UTILITY_DIALOG_QUIT:
 
                 sceUtilityNetconfShutdownStart();
+
                 break;
 
             case PSP_UTILITY_DIALOG_FINISHED:
 
+                sceUtilityUnloadNetModule(PSP_NET_MODULE_INET);
+                sceUtilityUnloadNetModule(PSP_NET_MODULE_COMMON);
+
                 return 0;
 
             case PSP_UTILITY_DIALOG_NONE:
+
+                sceUtilityUnloadNetModule(PSP_NET_MODULE_INET);
+                sceUtilityUnloadNetModule(PSP_NET_MODULE_COMMON);
 
                 return 0;
 
