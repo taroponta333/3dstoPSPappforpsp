@@ -66,13 +66,7 @@ int main(void)
 
     SetupCallbacks();
 
-    /* Initialize display */
-    sceDisplaySetMode(0, 480, 272);
-    sceDisplaySetFrameBuf(sceGeEdramGetAddr(), 512, PSP_DISPLAY_PIXEL_FORMAT_8888, PSP_DISPLAY_ROTATE_0);
-
     pspDebugScreenInit();
-    pspDebugScreenSetBackColor(0x00000000);
-    pspDebugScreenSetTextColor(0xFFFFFFFF);
     pspDebugScreenClear();
 
     pspDebugScreenPrintf("=================================\n");
