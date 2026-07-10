@@ -26,7 +26,27 @@ jobs:
 
           echo "=== Looking for build.mak ==="
           find /usr/local/pspdev -name "build.mak"
+      - name: SDK Information
+        run: |
+          echo "=== PSPDEV VERSION ==="
+          psp-config --version || true
 
+          echo ""
+          echo "=== Utility Headers ==="
+          find $(psp-config --pspsdk-path)/include -name "psputility*" | sort
+
+          echo ""
+          echo "=== Looking for netconf samples ==="
+          find /usr/local/pspdev -iname "*net*" -o -iname "*utility*" -o -iname "*sample*" | head -200
+
+          echo ""
+          echo "=== Utility Modules Header ==="
+          if [ -f "$(psp-config --pspsdk-path)/include/psputility_modules.h" ]; then
+            echo "FOUND!"
+            grep "sceUtilityLoadNetModule" $(psp-config --pspsdk-path)/include/psputility_modules.h || true
+          else
+            echo "NOT FOUND"
+          fi
       - name: Build
         run: |
           make clean
