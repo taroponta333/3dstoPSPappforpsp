@@ -6,7 +6,7 @@
 #include "dialog.h"
 #include "network.h"
 
-PSP_MODULE_INFO("3DS App Receiver", 0, 1, 0);
+PSP_MODULE_INFO("3DS App Receiver", PSP_MODULE_USER, 1, 0);
 PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER | THREAD_ATTR_VFPU);
 
 /*=========================================================
@@ -42,7 +42,7 @@ int SetupCallbacks(void)
     thid = sceKernelCreateThread(
         "update_thread",
         CallbackThread,
-        0x11,
+        0x20,
         0xFA0,
         0,
         NULL);
