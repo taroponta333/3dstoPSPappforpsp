@@ -1,10 +1,6 @@
 #include <pspkernel.h>
 #include <pspdebug.h>
 #include <pspdisplay.h>
-#include <pspctrl.h>
-
-#include "dialog.h"
-#include "network.h"
 
 PSP_MODULE_INFO("3DS App Receiver", 0, 1, 0);
 PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER | THREAD_ATTR_VFPU);
@@ -47,7 +43,7 @@ int SetupCallbacks(void)
         0,
         NULL);
 
-    if(thid >= 0)
+    if (thid >= 0)
         sceKernelStartThread(thid, 0, NULL);
 
     return thid;
@@ -59,83 +55,23 @@ int SetupCallbacks(void)
 
 int main(void)
 {
-    int ret;
-
     SetupCallbacks();
 
     pspDebugScreenInit();
 
     pspDebugScreenPrintf("=================================\n");
     pspDebugScreenPrintf("      3DS App Receiver\n");
-    pspDebugScreenPrintf("             v0.5\n");
+    pspDebugScreenPrintf("            v0.5.1\n");
     pspDebugScreenPrintf("=================================\n\n");
 
-    pspDebugScreenPrintf("Initializing Network...\n");
+    pspDebugScreenPrintf("Step 1 : Main Only\n");
+    pspDebugScreenPrintf("PSP Boot Success!\n\n");
 
-    ret = Network_Init();
+    pspDebugScreenPrintf("Press HOME to exit.\n");
 
-    if(ret < 0)
-    {
-        pspDebugScreenPrintf("\n");
-        pspDebugScreenPrintf("Network Init Failed!\n");
-        pspDebugScreenPrintf("Error : 0x%08X\n", ret);
-
-        while(1)
-            sceDisplayWaitVblankStart();
-    }
-
-    pspDebugScreenPrintf("[OK] Network Initialized\n");
-
-    pspDebugScreenPrintf("\n");
-
-    /* 接続ダイアログ */
-
-    ret = Dialog_ShowNetwork();
-
-if(ret == 0)
-{
-    pspDebugScreenPrintf("Connected!\n");
-}
-else
-{
-    pspDebugScreenPrintf("Cancelled.\n");
-}
-    if(ret < 0)
-    {
-        pspDebugScreenPrintf("Network Dialog Cancelled\n");
-
-        while(1)
-            sceDisplayWaitVblankStart();
-    }
-
-    pspDebugScreenPrintf("\n");
-    pspDebugScreenPrintf("Connected!\n");
-
-    pspDebugScreenPrintf("\n");
-
-    Network_PrintIP();
-
-    pspDebugScreenPrintf("\n");
-    pspDebugScreenPrintf("-------------------------------\n");
-    pspDebugScreenPrintf("Waiting for 3DS...\n");
-    pspDebugScreenPrintf("-------------------------------\n\n");
-
-    pspDebugScreenPrintf("HOME : Exit\n");
-
-    while(1)
+    while (1)
     {
         sceDisplayWaitVblankStart();
-
-        /*
-
-        v0.6
-            Receiver_Update();
-
-        v0.7
-            File_Update();
-
-        */
-
     }
 
     return 0;
